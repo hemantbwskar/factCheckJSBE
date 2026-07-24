@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "title": "Project Kickoff",
+    "date": "Jan 10, 2026",
+    "category": "Planning",
+    "description": "Initial team meeting to define objectives, scope, and key deliverables for the new application platform.",
+    "icon": "🚀"
+  },
+  {
+    "id": 2,
+    "title": "UI/UX Design Approved",
+    "date": "Feb 14, 2026",
+    "category": "Design",
+    "description": "Completed interactive prototypes in Figma and received final sign-off from key stakeholders.",
+    "icon": "🎨"
+  }
+]
