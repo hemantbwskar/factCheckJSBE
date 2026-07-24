@@ -36,4 +36,29 @@ app.put('/api/timeline/:id', (req, res) => {
   }
 });
 
+// POST: Add a new timeline item
+app.post('/api/timeline', (req, res) => {
+  try {
+    const rawData = fs.readFileSync(DATA_FILE, 'utf8');
+    const items = JSON.parse(rawData);
+
+    // Generate a simple unique ID (using timestamp)
+    const newItem = {
+      id: Date.now(),
+      title: req.body.title || 'New Event',
+      date: req.body.date || 'Jan 01, 2026',
+      category: req.body.category || 'General',
+      description: req.body.description || 'Description details here...',
+      icon: req.body.icon || '📌'
+    };
+
+    items.push(newItem);
+    fs.writeFileSync(DATA_FILE, JSON.stringify(items, null, 2));
+
+    res.json({ success: true, item: newItem });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to add new item' });
+  }
+});
+
 app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
