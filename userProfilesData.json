@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1,
+    "username": "hemantB",
+    "email": "hemant@example.com",
+    "full_name": "Hemant B",
+    "bio": "Full stack developer working on FactCheck project.",
+    "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=hemantB",
+    "role": "admin",
+    "created_at": "2026-01-10T00:00:00Z",
+    "updated_at": "2026-01-10T00:00:00Z"
+  }
+]
