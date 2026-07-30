@@ -75,15 +75,20 @@ app.put('/api/timeline/:id', async (req, res) => {
       });
     }
 
-    if (supabase) {
-      const updateData = {
-        title: updatedItem.title,
-        date: updatedItem.date,
-        category: updatedItem.category,
-        description: updatedItem.description,
-        icon: updatedItem.icon
-      };
+    const visibility = ['public', 'private'].includes(updatedItem.visibility)
+      ? updatedItem.visibility
+      : 'public';
 
+    const updateData = {
+      title: updatedItem.title,
+      date: updatedItem.date,
+      category: updatedItem.category || 'General',
+      description: updatedItem.description || '',
+      visibility: visibility,
+      username: updatedItem.username !== undefined ? updatedItem.username : null
+    };
+
+    if (supabase) {
       const { data, error } = await supabase
         .from('timeline_items')
         .update(updateData)
@@ -109,10 +114,11 @@ app.put('/api/timeline/:id', async (req, res) => {
     const rawData = fs.readFileSync(DATA_FILE, 'utf8');
     let items = JSON.parse(rawData);
 
-    items = items.map((item) => (item.id == targetId ? { ...item, ...updatedItem } : item));
+    const fullUpdatedItem = { id: targetId, ...updateData };
+    items = items.map((item) => (item.id == targetId ? fullUpdatedItem : item));
 
     fs.writeFileSync(DATA_FILE, JSON.stringify(items, null, 2));
-    res.json({ success: true, item: updatedItem });
+    res.json({ success: true, item: fullUpdatedItem });
   } catch (err) {
     console.error('PUT /api/timeline/:id error:', err);
     res.status(500).json({ error: 'Failed to update item' });
@@ -122,7 +128,7 @@ app.put('/api/timeline/:id', async (req, res) => {
 // POST: Add a new timeline item
 app.post('/api/timeline', async (req, res) => {
   try {
-    const { date, title, category, description, icon } = req.body;
+    const { date, title, category, description, visibility, username } = req.body;
 
     if (!date || !isValidUtcString(date)) {
       return res.status(400).json({
@@ -131,15 +137,18 @@ app.post('/api/timeline', async (req, res) => {
       });
     }
 
-    if (supabase) {
-      const insertData = {
-        title: title || 'New Event',
-        date: date,
-        category: category || 'General',
-        description: description || 'Description details here...',
-        icon: icon || '📌'
-      };
+    const validVisibility = ['public', 'private'].includes(visibility) ? visibility : 'public';
 
+    const insertData = {
+      title: title || 'New Event',
+      date: date,
+      category: category || 'General',
+      description: description || '',
+      visibility: validVisibility,
+      username: username || null
+    };
+
+    if (supabase) {
       const { data, error } = await supabase
         .from('timeline_items')
         .insert([insertData])
@@ -166,11 +175,7 @@ app.post('/api/timeline', async (req, res) => {
 
     const newItem = {
       id: Date.now(),
-      title: title || 'New Event',
-      date: date,
-      category: category || 'General',
-      description: description || 'Description details here...',
-      icon: icon || '📌'
+      ...insertData
     };
 
     items.push(newItem);

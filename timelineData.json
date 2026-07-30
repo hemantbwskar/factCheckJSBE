@@ -4,13 +4,17 @@
     "title": "Project Kickoff",
     "date": "2026-01-10T00:00:00Z",
     "category": "Planning",
-    "description": "Initial team meeting to define objectives, scope, and key deliverables for the new application platform."
+    "description": "Initial team meeting to define objectives, scope, and key deliverables for the new application platform.",
+    "visibility": "public",
+    "username": "hemantB"
   },
   {
     "id": 2,
     "title": "UI/UX Design Approved",
     "date": "2026-02-14T00:00:00Z",
     "category": "Design",
-    "description": "Completed interactive prototypes in Figma and received final sign-off from key stakeholders."
+    "description": "Completed interactive prototypes in Figma and received final sign-off from key stakeholders.",
+    "visibility": "public",
+    "username": "hemantB"
   }
 ]

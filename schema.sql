@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS timeline_items (
   date TIMESTAMPTZ NOT NULL,
   category TEXT DEFAULT 'General',
   description TEXT DEFAULT '',
-  icon TEXT DEFAULT '📌',
+  visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'private')),
+  username TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
