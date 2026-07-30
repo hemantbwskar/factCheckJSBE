@@ -29,6 +29,26 @@ if (
 app.use(cors());
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`\n--- [INCOMING REQUEST] [${timestamp}] ---`);
+  console.log(`Method: ${req.method} | Path: ${req.originalUrl}`);
+  if (req.params && Object.keys(req.params).length > 0) {
+    console.log('Params:', JSON.stringify(req.params, null, 2));
+  }
+  if (req.query && Object.keys(req.query).length > 0) {
+    console.log('Query:', JSON.stringify(req.query, null, 2));
+  }
+  if (req.body && Object.keys(req.body).length > 0) {
+    const logBody = { ...req.body };
+    if (logBody.password) logBody.password = '***';
+    console.log('Body:', JSON.stringify(logBody, null, 2));
+  }
+  console.log('-------------------------------------------\n');
+  next();
+});
+
 // Helper to validate if a string is a valid UTC date timestamp string
 function isValidUtcString(dateStr) {
   if (typeof dateStr !== 'string') return false;
@@ -50,11 +70,14 @@ app.get('/api/timeline', async (req, res) => {
         console.error('Supabase GET error:', error);
         return res.status(500).json({ error: error.message });
       }
+      console.log(`📤 Returned ${data ? data.length : 0} items from Supabase.`);
       return res.json(data);
     }
 
     const rawData = fs.readFileSync(DATA_FILE, 'utf8');
-    res.json(JSON.parse(rawData));
+    const items = JSON.parse(rawData);
+    console.log(`📤 Returned ${items.length} items from local timelineData.json.`);
+    res.json(items);
   } catch (err) {
     console.error('GET /api/timeline error:', err);
     res.status(500).json({ error: 'Failed to read data' });
@@ -68,7 +91,10 @@ app.put('/api/timeline/:id', async (req, res) => {
     const paramId = req.params.id;
     const targetId = !isNaN(paramId) ? Number(paramId) : (updatedItem.id || paramId);
 
+    console.log(`📥 Processing PUT /api/timeline/${targetId} with body:`, updatedItem);
+
     if (!updatedItem.date || !isValidUtcString(updatedItem.date)) {
+      console.warn('❌ Validation failed: date is missing or not a valid UTC string:', updatedItem.date);
       return res.status(400).json({
         success: false,
         error: 'Invalid or missing UTC date timestamp string. Expected format: YYYY-MM-DDTHH:mm:ssZ'
@@ -79,14 +105,19 @@ app.put('/api/timeline/:id', async (req, res) => {
       ? updatedItem.visibility
       : 'public';
 
+    const tags = Array.isArray(updatedItem.tags) ? updatedItem.tags.map(String) : [];
+
     const updateData = {
       title: updatedItem.title,
       date: updatedItem.date,
       category: updatedItem.category || 'General',
       description: updatedItem.description || '',
+      tags: tags,
       visibility: visibility,
       username: updatedItem.username !== undefined ? updatedItem.username : null
     };
+
+    console.log(`📝 Payload prepared for update (ID ${targetId}):`, updateData);
 
     if (supabase) {
       const { data, error } = await supabase
@@ -96,18 +127,19 @@ app.put('/api/timeline/:id', async (req, res) => {
         .select();
 
       if (error) {
-        console.error('Supabase PUT error:', error);
+        console.error('❌ Supabase PUT error:', error);
         return res.status(500).json({ success: false, error: error.message });
       }
 
       if (!data || data.length === 0) {
-        console.warn(`Supabase PUT updated 0 rows for ID ${targetId}. RLS issue or item not found.`);
+        console.warn(`⚠️ Supabase PUT updated 0 rows for ID ${targetId}. Check RLS or item existence.`);
         return res.status(404).json({
           success: false,
           error: `Item with ID ${targetId} was not updated in Supabase. Check if the item exists and review Supabase RLS policies.`
         });
       }
 
+      console.log('✅ Supabase PUT successfully updated row:', data[0]);
       return res.json({ success: true, item: data[0] });
     }
 
@@ -118,9 +150,10 @@ app.put('/api/timeline/:id', async (req, res) => {
     items = items.map((item) => (item.id == targetId ? fullUpdatedItem : item));
 
     fs.writeFileSync(DATA_FILE, JSON.stringify(items, null, 2));
+    console.log('✅ Local file updated with item:', fullUpdatedItem);
     res.json({ success: true, item: fullUpdatedItem });
   } catch (err) {
-    console.error('PUT /api/timeline/:id error:', err);
+    console.error('❌ PUT /api/timeline/:id error:', err);
     res.status(500).json({ error: 'Failed to update item' });
   }
 });
@@ -128,9 +161,12 @@ app.put('/api/timeline/:id', async (req, res) => {
 // POST: Add a new timeline item
 app.post('/api/timeline', async (req, res) => {
   try {
-    const { date, title, category, description, visibility, username } = req.body;
+    const { date, title, category, description, tags, visibility, username } = req.body;
+
+    console.log('📥 Processing POST /api/timeline with body:', req.body);
 
     if (!date || !isValidUtcString(date)) {
+      console.warn('❌ Validation failed: date is missing or not a valid UTC string:', date);
       return res.status(400).json({
         success: false,
         error: 'Invalid or missing UTC date timestamp string. Expected format: YYYY-MM-DDTHH:mm:ssZ'
@@ -138,15 +174,19 @@ app.post('/api/timeline', async (req, res) => {
     }
 
     const validVisibility = ['public', 'private'].includes(visibility) ? visibility : 'public';
+    const formattedTags = Array.isArray(tags) ? tags.map(String) : [];
 
     const insertData = {
       title: title || 'New Event',
       date: date,
       category: category || 'General',
       description: description || '',
+      tags: formattedTags,
       visibility: validVisibility,
       username: username || null
     };
+
+    console.log('📝 Payload prepared for insert:', insertData);
 
     if (supabase) {
       const { data, error } = await supabase
@@ -155,18 +195,19 @@ app.post('/api/timeline', async (req, res) => {
         .select();
 
       if (error) {
-        console.error('Supabase POST error:', error);
+        console.error('❌ Supabase POST error:', error);
         return res.status(500).json({ success: false, error: error.message });
       }
 
       if (!data || data.length === 0) {
-        console.warn('Supabase POST inserted 0 rows. RLS permissions issue.');
+        console.warn('⚠️ Supabase POST inserted 0 rows. Check RLS permissions.');
         return res.status(500).json({
           success: false,
           error: 'Failed to insert item into Supabase. Check Supabase Row Level Security (RLS) policies.'
         });
       }
 
+      console.log('✅ Supabase POST successfully created row:', data[0]);
       return res.json({ success: true, item: data[0] });
     }
 
@@ -180,10 +221,11 @@ app.post('/api/timeline', async (req, res) => {
 
     items.push(newItem);
     fs.writeFileSync(DATA_FILE, JSON.stringify(items, null, 2));
+    console.log('✅ Local file updated with new item:', newItem);
 
     res.json({ success: true, item: newItem });
   } catch (err) {
-    console.error('POST /api/timeline error:', err);
+    console.error('❌ POST /api/timeline error:', err);
     res.status(500).json({ error: 'Failed to add new item' });
   }
 });

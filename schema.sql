@@ -6,24 +6,22 @@ CREATE TABLE IF NOT EXISTS timeline_items (
   date TIMESTAMPTZ NOT NULL,
   category TEXT DEFAULT 'General',
   description TEXT DEFAULT '',
+  tags TEXT[] DEFAULT '{}',
   visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'private')),
   username TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable full access by disabling RLS or adding explicit policies for anon/authenticated roles
+-- Drop old 'icon' column if present from previous table version
+ALTER TABLE timeline_items DROP COLUMN IF EXISTS icon;
+
+-- Add new columns if missing
+ALTER TABLE timeline_items ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
+ALTER TABLE timeline_items ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'public';
+ALTER TABLE timeline_items ADD COLUMN IF NOT EXISTS username TEXT DEFAULT NULL;
+
+-- Enable full access by disabling RLS or adding explicit policies
 ALTER TABLE timeline_items DISABLE ROW LEVEL SECURITY;
 
--- Alternatively, if you want Row Level Security (RLS) enabled, run the policies below:
-/*
-ALTER TABLE timeline_items ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Allow public select" ON timeline_items;
-CREATE POLICY "Allow public select" ON timeline_items FOR SELECT TO anon, authenticated USING (true);
-
-DROP POLICY IF EXISTS "Allow public insert" ON timeline_items;
-CREATE POLICY "Allow public insert" ON timeline_items FOR INSERT TO anon, authenticated WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow public update" ON timeline_items;
-CREATE POLICY "Allow public update" ON timeline_items FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
-*/
+-- Force Supabase PostgREST to immediately refresh its schema cache
+NOTIFY pgrst, 'reload schema';
